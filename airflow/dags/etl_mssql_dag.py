@@ -28,7 +28,7 @@ def extract_and_load():
         FROM Sales.Customers
     """, mssql_engine)
 
-    print(f"Ištraukta eilučių: {len(df)}")
+    print(f"Extracted rows: {len(df)}")
 
     df.to_sql(
         name="raw_customers",
@@ -38,13 +38,13 @@ def extract_and_load():
         index=False
     )
 
-    print("Įkelta į DWH sėkmingai!")
+    print("Loaded into DWH successfully!")
 
 with DAG(
     dag_id="etl_mssql_customers",
     default_args=default_args,
-    description="ETL iš MSSQL WideWorldImporters į PostgreSQL DWH",
-    schedule="@daily",
+    description="ETL from MSSQL WideWorldImporters to PostgreSQL DWH",
+    schedule="*/15 * * * *",
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["mssql", "etl", "customers"],
