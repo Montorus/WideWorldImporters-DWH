@@ -1,4 +1,4 @@
-version: '3.8'
+name: WideWorldImporters-DWH
 
 services:
 
@@ -37,14 +37,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_DWH_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DWH_DB}
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - postgres_dwh_data:/var/lib/postgresql/data
     networks:
       - dwh_network
 
   airflow:
-    image: apache/airflow:2.8.1
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: airflow
     depends_on:
       - postgres_dwh
