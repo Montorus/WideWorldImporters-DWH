@@ -43,7 +43,7 @@ def extract_and_load():
         print(f"Loaded {len(df)} rows into {table_name}")
 
 with DAG(
-    dag_id="etl_adventureworks",
+    dag_id="etl_postgresql_adventureworks",
     default_args=default_args,
     description="ETL from AdventureWorks PostgreSQL source to PostgreSQL DWH",
     schedule="*/15 * * * *",  # Run every 15 minutes
