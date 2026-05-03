@@ -18,41 +18,70 @@ def extract_and_load():
         "postgresql://dwh_user:dwh123@postgres_dwh:5432/warehouse_db"
     )
 
-    df = pd.read_sql("""
-        SELECT
-            CustomerID,
-            CustomerName,
-            CustomerCategoryID,
-            CreditLimit,
-            AccountOpenedDate,
-            StandardDiscountPercentage,
-            IsStatementSent,
-            IsOnCreditHold,
-            PaymentDays,
-            PhoneNumber,
-            WebsiteURL,
-            DeliveryAddressLine1,
-            DeliveryPostalCode
-        FROM Sales.Customers
-    """, mssql_engine)
+    started_at = datetime.utcnow()
+    rows_loaded = 0
+    status = "success"
+    error_message = None
 
-    print(f"Extracted rows: {len(df)}")
+    try:
+        df = pd.read_sql("""
+            SELECT
+                CustomerID,
+                CustomerName,
+                CustomerCategoryID,
+                CreditLimit,
+                AccountOpenedDate,
+                StandardDiscountPercentage,
+                IsStatementSent,
+                IsOnCreditHold,
+                PaymentDays,
+                PhoneNumber,
+                WebsiteURL,
+                DeliveryAddressLine1,
+                DeliveryPostalCode
+            FROM Sales.Customers
+        """, mssql_engine)
 
-    # Truncate existing data without dropping table
-    # This preserves the table structure that stg_customers view depends on
-    with dwh_engine.connect() as conn:
-        conn.execute(text("TRUNCATE TABLE public.raw_customers"))
-        conn.commit()
+        rows_loaded = len(df)
+        print(f"Extracted rows: {rows_loaded}")
 
-    df.to_sql(
-        name="raw_customers",
-        con=dwh_engine,
-        schema="public",
-        if_exists="append",
-        index=False
-    )
+        with dwh_engine.connect() as conn:
+            conn.execute(text("TRUNCATE TABLE public.raw_customers"))
+            conn.commit()
 
-    print("Loaded into DWH successfully!")
+        df.to_sql(
+            name="raw_customers",
+            con=dwh_engine,
+            schema="public",
+            if_exists="append",
+            index=False
+        )
+
+        print("Loaded into DWH successfully!")
+
+    except Exception as e:
+        status = "failed"
+        error_message = str(e)
+        raise
+
+    finally:
+        finished_at = datetime.utcnow()
+        with dwh_engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO public.pipeline_runs
+                    (dag_name, table_name, rows_loaded, started_at, finished_at, status, error_message)
+                VALUES
+                    (:dag_name, :table_name, :rows_loaded, :started_at, :finished_at, :status, :error_message)
+            """), {
+                "dag_name": "etl_mssql_customers",
+                "table_name": "raw_customers",
+                "rows_loaded": rows_loaded,
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "status": status,
+                "error_message": error_message
+            })
+            conn.commit()
 
 with DAG(
     dag_id="etl_mssql_customers",

@@ -57,7 +57,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ../airflow/dags:/opt/airflow/dags
+     - ../airflow/dags:/opt/airflow/dags
+     - ../etl:/opt/airflow/etl
     networks:
       - dwh_network
     command: standalone
