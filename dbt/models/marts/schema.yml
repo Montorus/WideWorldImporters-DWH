@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Customer dimension from WideWorldImporters"
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        tests:
+          - not_null
+
+  - name: dim_products
+    description: "Product dimension from AdventureWorks"
+    columns:
+      - name: product_id
+        description: "Unique product identifier"
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+
+  - name: dim_employees
+    description: "Employee dimension from AdventureWorks"
+    columns:
+      - name: employee_id
+        description: "Unique employee identifier"
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_date
+    description: "Date dimension generated from 2010 to 2030"
+    columns:
+      - name: date_id
+        description: "Unique date identifier"
+        tests:
+          - unique
+          - not_null
+
+  - name: fact_sales
+    description: "Sales fact table combining orders and order details"
+    columns:
+      - name: sales_order_detail_id
+        description: "Unique sales order detail identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: date_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_id
