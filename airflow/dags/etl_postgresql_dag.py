@@ -1,10 +1,7 @@
-import sys
-sys.path.insert(0, "/opt/airflow/dags/../etl")
-
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime, timedelta
-from extract_postgresql import extract_and_load
+from etl.extract_postgresql import extract_and_load
 
 default_args = {
     'owner': 'airflow',

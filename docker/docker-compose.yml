@@ -50,17 +50,22 @@ services:
     container_name: airflow
     depends_on:
       - postgres_dwh
+
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_DWH_USER}:${POSTGRES_DWH_PASSWORD}@postgres_dwh/${POSTGRES_DWH_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      PYTHONPATH: "/opt/airflow"
     ports:
       - "8080:8080"
+
     volumes:
-     - ../airflow/dags:/opt/airflow/dags
-     - ../etl:/opt/airflow/etl
+      - ./dags:/opt/airflow/dags
+      - ./etl:/opt/airflow/etl
+
     networks:
       - dwh_network
+
     command: standalone
 
 volumes:
