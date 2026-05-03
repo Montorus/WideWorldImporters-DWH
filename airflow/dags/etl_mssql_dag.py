@@ -1,8 +1,8 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 default_args = {
     'owner': 'airflow',
@@ -22,19 +22,33 @@ def extract_and_load():
         SELECT
             CustomerID,
             CustomerName,
+            CustomerCategoryID,
             CreditLimit,
+            AccountOpenedDate,
+            StandardDiscountPercentage,
             IsStatementSent,
-            IsOnCreditHold
+            IsOnCreditHold,
+            PaymentDays,
+            PhoneNumber,
+            WebsiteURL,
+            DeliveryAddressLine1,
+            DeliveryPostalCode
         FROM Sales.Customers
     """, mssql_engine)
 
     print(f"Extracted rows: {len(df)}")
 
+    # Truncate existing data without dropping table
+    # This preserves the table structure that stg_customers view depends on
+    with dwh_engine.connect() as conn:
+        conn.execute(text("TRUNCATE TABLE public.raw_customers"))
+        conn.commit()
+
     df.to_sql(
         name="raw_customers",
         con=dwh_engine,
         schema="public",
-        if_exists="replace",
+        if_exists="append",
         index=False
     )
 
