@@ -1,0 +1,144 @@
+name: dbt Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  DBT_POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
+  DBT_POSTGRES_PASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
+  DBT_POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
+
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dbt
+        run: pip install dbt-postgres
+
+      - name: Create dbt profiles directory
+        run: mkdir -p ~/.dbt
+
+      - name: Create dbt profiles.yml from secrets
+        env:
+          DBT_POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
+          DBT_POSTGRES_PASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
+          DBT_POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
+        run: |
+          cat > ~/.dbt/profiles.yml << EOF
+          wideworldimporters_dwh:
+            target: dev
+            outputs:
+              dev:
+                type: postgres
+                host: 127.0.0.1
+                port: 5434
+                user: ${DBT_POSTGRES_USER}
+                password: ${DBT_POSTGRES_PASSWORD}
+                dbname: ${DBT_POSTGRES_DB}
+                schema: public
+                threads: 4
+          EOF
+
+      - name: Create raw tables for testing
+        env:
+          PGPASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
+          DBT_POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
+          DBT_POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
+        run: |
+          psql -h 127.0.0.1 -p 5434 -U "${DBT_POSTGRES_USER}" -d "${DBT_POSTGRES_DB}" -c "
+            CREATE TABLE IF NOT EXISTS raw_customers (
+              \"CustomerID\" bigint,
+              \"CustomerName\" text,
+              \"CustomerCategoryID\" bigint,
+              \"CreditLimit\" double precision,
+              \"AccountOpenedDate\" date,
+              \"StandardDiscountPercentage\" double precision,
+              \"IsStatementSent\" boolean,
+              \"IsOnCreditHold\" boolean,
+              \"PaymentDays\" bigint,
+              \"PhoneNumber\" text,
+              \"WebsiteURL\" text,
+              \"DeliveryAddressLine1\" text,
+              \"DeliveryPostalCode\" text
+            );
+            INSERT INTO raw_customers VALUES (1, 'Test Customer', 1, 1000.00, '2020-01-01', 0, false, false, 30, '123', 'http://test.com', 'Test St', '12345');
+
+            CREATE TABLE IF NOT EXISTS raw_products (
+              productid bigint, name text, productnumber text,
+              makeflag boolean, finishedgoodsflag boolean, color text,
+              safetystocklevel bigint, reorderpoint bigint,
+              standardcost double precision, listprice double precision,
+              size text, sizeunitmeasurecode text, weightunitmeasurecode text,
+              weight double precision, daystomanufacture bigint,
+              productline text, class text, style text
+            );
+            INSERT INTO raw_products VALUES (1, 'Test Product', 'TP-001', true, true, 'Red', 100, 50, 10.00, 20.00, 'M', 'CM', 'KG', 1.5, 1, 'R', 'H', 'U');
+
+            CREATE TABLE IF NOT EXISTS raw_employees (
+              businessentityid bigint, nationalidnumber text, loginid text,
+              jobtitle text, birthdate date, maritalstatus text, gender text,
+              hiredate date, salariedflag boolean, vacationhours bigint,
+              sickleavehours bigint, currentflag boolean, rowguid text,
+              modifieddate timestamp, organizationnode text
+            );
+            INSERT INTO raw_employees VALUES (1, '123', 'test/login', 'Engineer', '1990-01-01', 'S', 'M', '2020-01-01', true, 10, 5, true, 'abc', now(), '/1/');
+
+            CREATE TABLE IF NOT EXISTS raw_sales_orders (
+              salesorderid bigint, revisionnumber bigint,
+              orderdate timestamp, duedate timestamp, shipdate timestamp,
+              status bigint, onlineorderflag boolean, purchaseordernumber text,
+              accountnumber text, customerid bigint, salespersonid double precision,
+              territoryid bigint, billtoaddressid bigint, shiptoaddressid bigint,
+              shipmethodid bigint, creditcardid double precision,
+              creditcardapprovalcode text, currencyrateid double precision,
+              subtotal double precision, taxamt double precision,
+              freight double precision, totaldue double precision,
+              order_date_key date
+            );
+            INSERT INTO raw_sales_orders VALUES (1, 1, now(), now(), now(), 5, false, 'PO-001', 'ACC-001', 1, 1, 1, 1, 1, 1, null, null, null, 100.00, 10.00, 5.00, 115.00, now()::date);
+
+            CREATE TABLE IF NOT EXISTS raw_sales_details (
+              salesorderid bigint, salesorderdetailid bigint,
+              carriertrackingnumber text, orderqty bigint, productid bigint,
+              specialofferid bigint, unitprice double precision,
+              unitpricediscount double precision, rowguid text, modifieddate timestamp
+            );
+            INSERT INTO raw_sales_details VALUES (1, 1, 'TRK-001', 2, 1, 1, 20.00, 0.00, 'abc', now());
+          "
+
+      - name: Run dbt models
+        working-directory: ./dbt
+        run: dbt run
+
+      - name: Run dbt tests
+        working-directory: ./dbt
+        run: dbt test
