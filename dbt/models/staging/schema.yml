@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: public
+    tables:
+      - name: raw_customers
+        description: "Raw customers data from WideWorldImporters MSSQL source"
+      - name: raw_sales_orders
+        description: "Raw sales orders from AdventureWorks PostgreSQL source"
+      - name: raw_sales_details
+        description: "Raw sales order details from AdventureWorks PostgreSQL source"
+      - name: raw_products
+        description: "Raw products from AdventureWorks PostgreSQL source"
+      - name: raw_employees
+        description: "Raw employees from AdventureWorks PostgreSQL source"
