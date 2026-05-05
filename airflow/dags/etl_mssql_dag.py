@@ -1,8 +1,10 @@
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
-from datetime import datetime, timedelta
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from datetime import datetime, timedelta, timezone
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 default_args = {
     'owner': 'airflow',
@@ -11,14 +13,10 @@ default_args = {
 }
 
 def extract_and_load():
-    mssql_engine = create_engine(
-        "mssql+pymssql://sa:StrongPass123!@mssql_source:1433/WideWorldImporters"
-    )
-    dwh_engine = create_engine(
-        "postgresql://dwh_user:dwh123@postgres_dwh:5432/warehouse_db"
-    )
+    mssql_engine = MsSqlHook(mssql_conn_id="mssql_source").get_sqlalchemy_engine()
+    dwh_engine = PostgresHook(postgres_conn_id="postgres_dwh").get_sqlalchemy_engine()
 
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
     rows_loaded = 0
     status = "success"
     error_message = None
@@ -65,7 +63,7 @@ def extract_and_load():
         raise
 
     finally:
-        finished_at = datetime.utcnow()
+        finished_at = datetime.now(timezone.utc)
         with dwh_engine.connect() as conn:
             conn.execute(text("""
                 INSERT INTO public.pipeline_runs
@@ -82,6 +80,8 @@ def extract_and_load():
                 "error_message": error_message
             })
             conn.commit()
+        mssql_engine.dispose()
+        dwh_engine.dispose()
 
 with DAG(
     dag_id="etl_mssql_customers",

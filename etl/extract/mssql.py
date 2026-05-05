@@ -1,17 +1,18 @@
 import pandas as pd
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
+import os
 
-# Connect to MSSQL WideWorldImporters
+load_dotenv()
+
 mssql_engine = create_engine(
-    "mssql+pymssql://sa:StrongPass123!@127.0.0.1:1433/WideWorldImporters"
+    f"mssql+pymssql://sa:{os.getenv('MSSQL_SA_PASSWORD')}@127.0.0.1:1433/WideWorldImporters"
 )
 
-# Connect to PostgreSQL DWH
 dwh_engine = create_engine(
-    "postgresql://dwh_user:dwh123@127.0.0.1:5434/warehouse_db"
+    f"postgresql://{os.getenv('POSTGRES_DWH_USER')}:{os.getenv('POSTGRES_DWH_PASSWORD')}@127.0.0.1:5434/{os.getenv('POSTGRES_DWH_DB')}"
 )
 
-# Extract customers from WideWorldImporters
 df = pd.read_sql("""
     SELECT
         CustomerID,
@@ -32,7 +33,6 @@ df = pd.read_sql("""
 
 print(f"Extracted rows: {len(df)}")
 
-# Load into DWH
 df.to_sql(
     name="raw_customers",
     con=dwh_engine,

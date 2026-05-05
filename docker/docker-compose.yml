@@ -50,22 +50,24 @@ services:
     container_name: airflow
     depends_on:
       - postgres_dwh
-
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_DWH_USER}:${POSTGRES_DWH_PASSWORD}@postgres_dwh/${POSTGRES_DWH_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       PYTHONPATH: "/opt/airflow"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: "admin:Admin"
+      AIRFLOW__DAG_BUNDLES__DAG_BUNDLE_CONFIG_LIST: '[{"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {"local_folder": "/opt/airflow/dags", "refresh_interval": 30}}]'
+      AIRFLOW_CONN_MSSQL_SOURCE: "mssql+pymssql://sa:${MSSQL_SA_PASSWORD}@mssql_source:1433/WideWorldImporters"
+      AIRFLOW_CONN_POSTGRES_SOURCE: "postgresql://${POSTGRES_SOURCE_USER}:${POSTGRES_SOURCE_PASSWORD}@postgres_source:5432/${POSTGRES_SOURCE_DB}"
+      AIRFLOW_CONN_POSTGRES_DWH: "postgresql://${POSTGRES_DWH_USER}:${POSTGRES_DWH_PASSWORD}@postgres_dwh:5432/${POSTGRES_DWH_DB}"
     ports:
       - "8080:8080"
-
     volumes:
-      - ./dags:/opt/airflow/dags
-      - ./etl:/opt/airflow/etl
-
+       - ../airflow/dags:/opt/airflow/dags
+       - ../etl:/opt/airflow/etl
+       - ./simple_auth_manager_passwords.json.generated:/opt/airflow/simple_auth_manager_passwords.json.generated
     networks:
       - dwh_network
-
     command: standalone
 
 volumes:
