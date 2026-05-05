@@ -40,11 +40,11 @@ def extract_and_load(source_conn_id: str, dwh_conn_id: str, dag_name: str = None
         print(f"Extracted rows: {rows_loaded}")
 
         with dwh_engine.connect() as conn:
-            conn.execute(text("TRUNCATE TABLE public.raw_customers"))
+            conn.execute(text("TRUNCATE TABLE public.raw_wwi_customers"))
             conn.commit()
 
         df.to_sql(
-            name="raw_customers",
+            name="raw_wwi_customers",
             con=dwh_engine,
             schema="public",
             if_exists="append",
@@ -69,7 +69,7 @@ def extract_and_load(source_conn_id: str, dwh_conn_id: str, dag_name: str = None
                         (:dag_name, :table_name, :rows_loaded, :started_at, :finished_at, :status, :error_message)
                 """), {
                     "dag_name": dag_name,
-                    "table_name": "raw_customers",
+                    "table_name": "raw_wwi_customers",
                     "rows_loaded": rows_loaded,
                     "started_at": started_at,
                     "finished_at": finished_at,

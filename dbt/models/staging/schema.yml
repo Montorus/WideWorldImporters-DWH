@@ -5,13 +5,14 @@ sources:
     schema: public
     tables:
       - name: raw_customers
-        description: "Raw customers data from WideWorldImporters MSSQL source"
+        description: "Raw customers data from AdventureWorks PostgreSQL source"
         columns:
-          - name: CustomerID
+          - name: customerid
             description: "Source customer identifier"
-            quote: true
             tests:
               - not_null
+      - name: raw_wwi_customers
+        description: "Raw customers data from WideWorldImporters MSSQL source, kept separate from the AdventureWorks sales mart"
       - name: raw_sales_orders
         description: "Raw sales orders from AdventureWorks PostgreSQL source"
         columns:

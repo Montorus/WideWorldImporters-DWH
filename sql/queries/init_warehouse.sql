@@ -13,6 +13,20 @@ CREATE TABLE IF NOT EXISTS public.pipeline_runs (
 );
 
 CREATE TABLE IF NOT EXISTS public.raw_customers (
+    customerid                      BIGINT,
+    personid                        DOUBLE PRECISION,
+    storeid                         DOUBLE PRECISION,
+    territoryid                     BIGINT,
+    accountnumber                   TEXT,
+    customer_name                   TEXT,
+    first_name                      TEXT,
+    middle_name                     TEXT,
+    last_name                       TEXT,
+    store_name                      TEXT,
+    modifieddate                    TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.raw_wwi_customers (
     "CustomerID"                    BIGINT,
     "CustomerName"                  TEXT,
     "CustomerCategoryID"            BIGINT,

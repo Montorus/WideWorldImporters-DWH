@@ -4,21 +4,19 @@ with source as (
 
 renamed as (
     select
-        "CustomerID"                    as customer_id,
-        "CustomerName"                  as customer_name,
-        "CustomerCategoryID"            as customer_category_id,
-        "CreditLimit"                   as credit_limit,
-        "AccountOpenedDate"             as account_opened_date,
-        "StandardDiscountPercentage"    as standard_discount_percentage,
-        "IsStatementSent"               as is_statement_sent,
-        "IsOnCreditHold"                as is_on_credit_hold,
-        "PaymentDays"                   as payment_days,
-        "PhoneNumber"                   as phone_number,
-        "WebsiteURL"                    as website_url,
-        "DeliveryAddressLine1"          as delivery_address,
-        "DeliveryPostalCode"            as delivery_postal_code
+        customerid                  as customer_id,
+        customer_name               as customer_name,
+        personid                    as person_id,
+        storeid                     as store_id,
+        territoryid                 as territory_id,
+        accountnumber               as account_number,
+        first_name                  as first_name,
+        middle_name                 as middle_name,
+        last_name                   as last_name,
+        store_name                  as store_name,
+        modifieddate                as modified_date
     from source
-    where "CustomerID" is not null
+    where customerid is not null
 )
 
 select * from renamed

@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: dim_customers
-    description: "Customer dimension from WideWorldImporters"
+    description: "Customer dimension from AdventureWorks, aligned with fact_sales customer_id"
     columns:
       - name: customer_id
         description: "Unique customer identifier"

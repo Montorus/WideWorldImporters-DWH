@@ -1,7 +1,8 @@
 # WideWorldImporters Data Warehouse
 
-Enterprise-grade Data Warehouse pipeline built with modern data engineering tools.
-Demonstrates end-to-end data pipeline from multiple sources to a Star Schema data warehouse with automated orchestration, data quality testing, and business intelligence reporting.
+End-to-end Data Warehouse project built with Docker, Apache Airflow, dbt, PostgreSQL, MSSQL, and Power BI.
+
+The project demonstrates a multi-source ETL pipeline into a PostgreSQL analytical warehouse. Airflow loads RAW tables, dbt builds staging views and star-schema marts, tests validate data quality, and Power BI consumes the mart layer.
 
 ---
 
@@ -10,58 +11,59 @@ Demonstrates end-to-end data pipeline from multiple sources to a Star Schema dat
 ```mermaid
 flowchart TD
     subgraph SOURCES["Data Sources"]
-        MSSQL["🗄️ MSSQL\nWideWorldImporters\n48 tables\nSales · Purchasing · Warehouse · HR"]
-        PG_SRC["🗄️ PostgreSQL\nAdventureWorks\n68 tables\nSales · HR · Production"]
+        MSSQL["MSSQL\nWideWorldImporters\nCustomers archive"]
+        PG_SRC["PostgreSQL\nAdventureWorks\nCustomers · Sales · Products · Employees"]
     end
 
-    subgraph ORCHESTRATION["Orchestration"]
-        AIRFLOW["⚙️ Apache Airflow 3.2.1\netl_mssql_customers\netl_postgresql_adventureworks\nSchedule: every 15 min\nRetry: 3x every 5 min"]
+    subgraph AIRFLOW["Apache Airflow 3.2.1"]
+        MSSQL_DAG["etl_mssql_customers\nEvery 15 min"]
+        PG_DAG["etl_postgresql_adventureworks\nEvery 15 min"]
     end
 
     subgraph DWH["PostgreSQL Data Warehouse"]
-        subgraph RAW["RAW Layer — Airflow loads"]
-            R1["raw_customers · 663 rows"]
-            R2["raw_sales_orders · 31,465 rows"]
-            R3["raw_sales_details · 121,317 rows"]
-            R4["raw_products · 504 rows"]
-            R5["raw_employees · 290 rows"]
+        subgraph RAW["RAW Layer"]
+            WWI_RAW["raw_wwi_customers"]
+            AW_CUSTOMERS["raw_customers"]
+            AW_ORDERS["raw_sales_orders"]
+            AW_DETAILS["raw_sales_details"]
+            AW_PRODUCTS["raw_products"]
+            AW_EMPLOYEES["raw_employees"]
+            RUNS["pipeline_runs"]
         end
 
-        subgraph STAGING["Staging Layer — dbt views"]
-            S1["stg_customers"]
-            S2["stg_sales_orders"]
-            S3["stg_sales_details"]
-            S4["stg_products"]
-            S5["stg_employees"]
+        subgraph STAGING["dbt Staging Views"]
+            STG_CUSTOMERS["stg_customers"]
+            STG_ORDERS["stg_sales_orders"]
+            STG_DETAILS["stg_sales_details"]
+            STG_PRODUCTS["stg_products"]
+            STG_EMPLOYEES["stg_employees"]
         end
 
-        subgraph MARTS["Mart Layer — dbt tables · Star Schema"]
-            DIM1["dim_customers\n663 rows · SCD Type 2"]
-            DIM2["dim_products\n504 rows · SCD Type 2"]
-            DIM3["dim_employees\n290 rows · SCD Type 2"]
-            DIM4["dim_date\n7,670 rows · 2010–2030"]
-            FACT["⭐ fact_sales\n121,317 rows"]
+        subgraph MARTS["dbt Mart Tables"]
+            DIM_CUSTOMERS["dim_customers\nCurrent-state"]
+            DIM_PRODUCTS["dim_products\nCurrent-state"]
+            DIM_EMPLOYEES["dim_employees\nCurrent-state"]
+            DIM_DATE["dim_date\n2010-2030"]
+            FACT_SALES["fact_sales"]
         end
     end
 
-    subgraph DBT["dbt 1.11.8"]
-        DBT_RUN["dbt run\n10 models"]
-        DBT_TEST["dbt test\n16 tests · PASS=16"]
-    end
+    POWERBI["Power BI Report"]
 
-    POWERBI["📊 Power BI\nKPI Dashboards & Reporting"]
-
-    MSSQL --> AIRFLOW
-    PG_SRC --> AIRFLOW
-    AIRFLOW --> RAW
+    MSSQL --> MSSQL_DAG
+    PG_SRC --> PG_DAG
+    MSSQL_DAG --> WWI_RAW
+    PG_DAG --> AW_CUSTOMERS
+    PG_DAG --> AW_ORDERS
+    PG_DAG --> AW_DETAILS
+    PG_DAG --> AW_PRODUCTS
+    PG_DAG --> AW_EMPLOYEES
     RAW --> STAGING
-    DBT --> STAGING
-    DBT --> MARTS
     STAGING --> MARTS
-    DIM1 --> FACT
-    DIM2 --> FACT
-    DIM3 --> FACT
-    DIM4 --> FACT
+    DIM_CUSTOMERS --> FACT_SALES
+    DIM_PRODUCTS --> FACT_SALES
+    DIM_EMPLOYEES --> FACT_SALES
+    DIM_DATE --> FACT_SALES
     MARTS --> POWERBI
 ```
 
@@ -69,184 +71,256 @@ flowchart TD
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Source #1 | MSSQL + WideWorldImporters | 48 tables — Sales, Purchasing, Warehouse, HR |
-| Source #2 | PostgreSQL + AdventureWorks | 68 tables — Sales, HR, Production |
-| Orchestration | Apache Airflow 3.2.1 | ETL scheduling, retry logic, monitoring |
-| Transformation | dbt 1.11.8 | SQL models, data quality tests |
-| Warehouse | PostgreSQL 15 | Star Schema data warehouse |
-| Visualization | Power BI | KPI dashboards and reporting |
-| Infrastructure | Docker + Docker Compose | Containerized environment |
-| Version Control | Git + GitHub | Code versioning and CI/CD |
+| Source #1 | MSSQL + WideWorldImporters | Separate customer extract into `raw_wwi_customers` |
+| Source #2 | PostgreSQL + AdventureWorks | Sales mart source data |
+| Orchestration | Apache Airflow 3.2.1 | ETL scheduling, retries, monitoring |
+| Transformation | dbt 1.11.8 | SQL models, tests, documentation metadata |
+| Warehouse | PostgreSQL 15 | RAW, staging, and mart layers |
+| BI | Power BI | Reporting over the mart layer |
+| Infrastructure | Docker Compose | Local reproducible runtime |
+| CI | GitHub Actions | Airflow DAG import tests and dbt validation |
 
 ---
 
 ## Project Structure
 
-```
+```text
 WideWorldImporters-DWH/
+├── .github/workflows/
+│   └── dbt_test.yml                  # CI: Airflow import tests + dbt parse/run/test
 ├── airflow/
 │   └── dags/
-│       ├── etl_mssql_dag.py           # ETL from MSSQL WideWorldImporters
-│       └── etl_postgresql_dag.py      # ETL from PostgreSQL AdventureWorks
+│       ├── etl_mssql_dag.py          # MSSQL WideWorldImporters DAG
+│       └── etl_postgresql_dag.py     # PostgreSQL AdventureWorks DAG
 ├── dbt/
-│   ├── models/
-│   │   ├── staging/                   # Raw data cleaning and standardization
-│   │   │   ├── stg_customers.sql
-│   │   │   ├── stg_products.sql
-│   │   │   ├── stg_employees.sql
-│   │   │   ├── stg_sales_orders.sql
-│   │   │   ├── stg_sales_details.sql
-│   │   │   └── schema.yml
-│   │   └── marts/                     # Star Schema models
-│   │       ├── dim_customers.sql
-│   │       ├── dim_products.sql
-│   │       ├── dim_employees.sql
-│   │       ├── dim_date.sql
-│   │       ├── fact_sales.sql
-│   │       └── schema.yml
-│   └── dbt_project.yml
-├── etl/
-│   ├── extract/                       # Source extraction/load helpers
-│   │   ├── mssql.py
-│   │   └── postgresql.py
-│   └── transform/
+│   ├── dbt_project.yml
+│   └── models/
+│       ├── staging/                  # RAW-to-staging views and source tests
+│       └── marts/                    # Star-schema mart tables and relationship tests
 ├── docker/
-│   ├── docker-compose.yml
-│   └── Dockerfile
+│   ├── .env.example
+│   ├── Dockerfile
+│   └── docker-compose.yml
 ├── docs/
 │   ├── README.md
 │   ├── WideWorldImporters-PowerBI.pbix
-│   └── etl/
-│       └── pipeline_flow.md
+│   └── etl/pipeline_flow.md
+├── etl/
+│   └── extract/
+│       ├── mssql.py
+│       └── postgresql.py
 ├── sql/
 │   └── queries/
 │       └── init_warehouse.sql
-├── docker/.env.example
-├── .gitignore
+├── tests/
+│   └── test_airflow_dags.py
 └── README.md
 ```
 
 ---
 
-## Data Warehouse Layers
+## Warehouse Layers
 
 ### RAW Layer
-Raw data loaded directly from source systems by Airflow ETL pipeline. No transformations applied.
 
-| Table | Source | Rows |
+RAW tables are loaded by Airflow and initialized by [init_warehouse.sql](sql/queries/init_warehouse.sql).
+
+| Table | Source | Role |
 |---|---|---|
-| raw_customers | MSSQL WideWorldImporters | 663 |
-| raw_sales_orders | PostgreSQL AdventureWorks | 31,465 |
-| raw_sales_details | PostgreSQL AdventureWorks | 121,317 |
-| raw_products | PostgreSQL AdventureWorks | 504 |
-| raw_employees | PostgreSQL AdventureWorks | 290 |
+| `raw_customers` | AdventureWorks PostgreSQL | Customers used by `fact_sales` |
+| `raw_sales_orders` | AdventureWorks PostgreSQL | Sales order headers |
+| `raw_sales_details` | AdventureWorks PostgreSQL | Sales order lines |
+| `raw_products` | AdventureWorks PostgreSQL | Product master data |
+| `raw_employees` | AdventureWorks PostgreSQL | Employee master data |
+| `raw_wwi_customers` | WideWorldImporters MSSQL | Separate customer extract, not joined to the sales mart |
+| `pipeline_runs` | Airflow ETL metadata | DAG/table load audit records |
 
 ### Staging Layer
-dbt models that clean, rename, and standardize raw data. Built as **views**.
 
-| Model | Description |
+Staging models are dbt views that normalize names and apply basic filtering.
+
+| Model | Input |
 |---|---|
-| stg_customers | Standardized customer data from WideWorldImporters |
-| stg_products | Standardized product data from AdventureWorks |
-| stg_employees | Standardized employee data from AdventureWorks |
-| stg_sales_orders | Standardized sales order headers |
-| stg_sales_details | Standardized sales order lines with calculated line_total |
+| `stg_customers` | `raw_customers` |
+| `stg_sales_orders` | `raw_sales_orders` |
+| `stg_sales_details` | `raw_sales_details` |
+| `stg_products` | `raw_products` |
+| `stg_employees` | `raw_employees` |
 
-### Mart Layer — Star Schema
-dbt models that implement the Star Schema. Built as **tables** for Power BI performance.
+### Mart Layer
 
-| Model | Type | Rows | Description |
-|---|---|---|---|
-| dim_customers | Dimension | 663 | Customer master data with SCD Type 2 |
-| dim_products | Dimension | 504 | Product master data with SCD Type 2 |
-| dim_employees | Dimension | 290 | Employee master data with SCD Type 2 |
-| dim_date | Dimension | 7,670 | Date spine from 2010 to 2030 |
-| fact_sales | Fact | 121,317 | Sales transactions linking all dimensions |
+Mart models are dbt tables optimized for reporting.
+
+| Model | Type | Description |
+|---|---|---|
+| `dim_customers` | Dimension | AdventureWorks customers aligned with `fact_sales.customer_id` |
+| `dim_products` | Dimension | Current-state products |
+| `dim_employees` | Dimension | Current-state employees |
+| `dim_date` | Dimension | Date spine from 2010-01-01 to 2030-12-31 |
+| `fact_sales` | Fact | Sales order lines with quantity, price, discount, tax, freight, and total measures |
+
+The dimensions are current-state tables. They do not preserve historical attribute versions yet.
 
 ---
 
 ## Data Quality
 
-16 automated dbt tests run on every pipeline execution:
+The dbt project currently defines 50 data tests:
 
-- **unique** — no duplicate primary keys
-- **not_null** — no missing values in critical fields
-- **relationships** — foreign key integrity between fact and dimension tables
+| Test Type | Purpose |
+|---|---|
+| `not_null` | Ensures required keys and measures are populated |
+| `unique` | Ensures dimension keys and fact line keys are not duplicated |
+| `relationships` | Ensures `fact_sales` keys resolve to dimension tables |
 
-```bash
-dbt test
-# Done. PASS=16 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=16
-```
+CI also runs Airflow DAG import tests from [test_airflow_dags.py](tests/test_airflow_dags.py).
 
 ---
 
-## How to Run
+## How To Run
 
 ### Prerequisites
+
 - Docker Desktop
 - Python 3.13
-- dbt-postgres
+- dbt-postgres installed locally, or use the existing `.venv`
+- MSSQL WideWorldImporters `.bak` file if you want to load the MSSQL source
+- AdventureWorks data restored into `postgres_source` if you want real sales data
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/your-username/WideWorldImporters-DWH
-cd WideWorldImporters-DWH
+### 1. Configure Environment
+
+```powershell
+Copy-Item docker\.env.example docker\.env
 ```
 
-### 2. Set up environment variables
-```bash
-cp .env.example docker/.env
-# Edit docker/.env with your passwords
-```
+Edit `docker/.env` and set the passwords/database names.
 
-### 3. Start Docker containers
-```bash
+### 2. Start Containers
+
+```powershell
 cd docker
-docker-compose up -d
+docker compose up -d --build
+docker compose ps
 ```
 
-### 4. Initialize DWH tables
-```bash
-psql -h 127.0.0.1 -p 5434 -U dwh_user -d warehouse_db -f ../sql/queries/init_warehouse.sql
+Airflow is available at:
+
+```text
+http://localhost:8080
 ```
 
-This creates the `pipeline_runs` metadata table and the RAW tables required by the Airflow load tasks.
+### 3. Initialize The Warehouse
 
-### 5. Restore MSSQL database
-```bash
+From the repository root:
+
+```powershell
+docker compose -f docker\docker-compose.yml cp sql\queries\init_warehouse.sql postgres_dwh:/tmp/init_warehouse.sql
+docker compose -f docker\docker-compose.yml exec postgres_dwh sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/init_warehouse.sql'
+```
+
+This creates RAW tables and `pipeline_runs`.
+
+### 4. Restore Source Data
+
+Restore WideWorldImporters into `mssql_source` if you want the MSSQL customer extract:
+
+```powershell
 docker cp WideWorldImporters-Full.bak mssql_source:/var/opt/mssql/data/
-docker exec -it mssql_source /opt/mssql-tools18/bin/sqlcmd \
-  -S localhost -U sa -P "your_password" -No \
-  -Q "RESTORE DATABASE WideWorldImporters FROM DISK='/var/opt/mssql/data/WideWorldImporters-Full.bak'..."
 ```
 
-### 6. Run dbt models
-```bash
+Then restore the database inside SQL Server with `sqlcmd`.
+
+Load or restore AdventureWorks data into `postgres_source`; the PostgreSQL DAG expects these source tables:
+
+| Source Table |
+|---|
+| `sales.customer` |
+| `person.person` |
+| `sales.store` |
+| `sales.salesorderheader` |
+| `sales.salesorderdetail` |
+| `production.product` |
+| `humanresources.employee` |
+
+### 5. Run Airflow ETL
+
+In Airflow UI, enable or trigger:
+
+| DAG | Loads |
+|---|---|
+| `etl_mssql_customers` | `raw_wwi_customers` |
+| `etl_postgresql_adventureworks` | `raw_customers`, `raw_sales_orders`, `raw_sales_details`, `raw_products`, `raw_employees` |
+
+### 6. Run dbt
+
+From the dbt directory:
+
+```powershell
 cd dbt
+..\.venv\Scripts\dbt.exe parse
+..\.venv\Scripts\dbt.exe run
+..\.venv\Scripts\dbt.exe test
+```
+
+If `dbt` is installed globally, use:
+
+```powershell
+dbt parse
 dbt run
 dbt test
 ```
 
-### 7. Access Airflow
+### 7. Run Airflow DAG Import Tests
+
+From the Docker directory:
+
+```powershell
+cd docker
+docker compose exec airflow python -m unittest discover -s /opt/airflow/tests -p "test_*.py"
 ```
-URL: http://localhost:8080
+
+Expected result:
+
+```text
+Ran 3 tests
+OK
 ```
 
 ---
 
-## Key Design Decisions
+## CI
 
-**Why two source databases?**
-Demonstrates ability to work with heterogeneous data sources — a common real-world scenario where enterprise data comes from multiple systems.
+GitHub Actions workflow [dbt_test.yml](.github/workflows/dbt_test.yml) runs on push and pull request to `main`.
 
-**Why Star Schema?**
-Star Schema is the industry standard for Data Warehouse design. It optimizes query performance for analytical workloads and is natively supported by Power BI.
+It validates:
 
-**Why SCD Type 2?**
-Slowly Changing Dimensions preserve historical data. When a customer changes their address, both the old and new address are kept — critical for accurate historical reporting.
+1. Python dependency installation.
+2. Airflow DAG imports.
+3. dbt project parsing.
+4. DWH initialization through `sql/queries/init_warehouse.sql`.
+5. dbt model build.
+6. dbt data tests.
 
-**Why dbt?**
-dbt brings software engineering best practices to data transformation — version control, testing, documentation, and modular SQL models.
+---
 
-**Why Airflow?**
-Airflow provides enterprise-grade pipeline orchestration with scheduling, retry logic, monitoring, and alerting — essential for production data pipelines.
+## Design Decisions
+
+**Two source databases**
+
+The project keeps MSSQL WideWorldImporters and PostgreSQL AdventureWorks as separate source systems to demonstrate heterogeneous extraction.
+
+**AdventureWorks customer dimension**
+
+`fact_sales.customer_id` comes from AdventureWorks sales orders, so `dim_customers` is built from AdventureWorks customers. WideWorldImporters customers are loaded separately into `raw_wwi_customers` to avoid mixing incompatible customer ID spaces.
+
+**Star schema**
+
+The mart layer uses `fact_sales` plus customer, product, employee, and date dimensions because this is a simple and Power BI-friendly analytical model.
+
+**Current-state dimensions**
+
+Dimension tables currently represent the latest source attributes. Historical SCD Type 2 tracking can be added later with dbt snapshots or incremental dimension logic.
+
+**dbt tests**
+
+Tests are part of the model contract: key uniqueness, required fields, and fact-to-dimension integrity are validated before reporting.

@@ -1,4 +1,4 @@
-name: dbt Tests
+name: Data Pipeline Tests
 
 on:
   push:
@@ -12,9 +12,10 @@ env:
   DBT_POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
   DBT_POSTGRES_PASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
   DBT_POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
+  PYTHONPATH: ${{ github.workspace }}
 
 jobs:
-  dbt-test:
+  pipeline-test:
     runs-on: ubuntu-latest
 
     services:
@@ -41,8 +42,20 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install dbt
-        run: pip install dbt-postgres
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            "apache-airflow==3.2.1" \
+            "apache-airflow-providers-standard" \
+            "apache-airflow-providers-microsoft-mssql==4.5.2" \
+            "apache-airflow-providers-postgres" \
+            "dbt-postgres" \
+            "pandas" \
+            "pymssql>=2.3.5"
+
+      - name: Run Airflow DAG import tests
+        run: python -m unittest discover -s tests -p "test_*.py"
 
       - name: Create dbt profiles directory
         run: mkdir -p ~/.dbt
@@ -68,71 +81,57 @@ jobs:
                 threads: 4
           EOF
 
-      - name: Create raw tables for testing
+      - name: Parse dbt project
+        working-directory: ./dbt
+        run: dbt parse
+
+      - name: Initialize DWH schema
+        env:
+          PGPASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
+          DBT_POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
+          DBT_POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
+        run: psql -h 127.0.0.1 -p 5434 -U "${DBT_POSTGRES_USER}" -d "${DBT_POSTGRES_DB}" -f sql/queries/init_warehouse.sql
+
+      - name: Seed raw test data
         env:
           PGPASSWORD: ${{ secrets.DBT_POSTGRES_PASSWORD }}
           DBT_POSTGRES_USER: ${{ secrets.DBT_POSTGRES_USER }}
           DBT_POSTGRES_DB: ${{ secrets.DBT_POSTGRES_DB }}
         run: |
           psql -h 127.0.0.1 -p 5434 -U "${DBT_POSTGRES_USER}" -d "${DBT_POSTGRES_DB}" -c "
-            CREATE TABLE IF NOT EXISTS raw_customers (
-              \"CustomerID\" bigint,
-              \"CustomerName\" text,
-              \"CustomerCategoryID\" bigint,
-              \"CreditLimit\" double precision,
-              \"AccountOpenedDate\" date,
-              \"StandardDiscountPercentage\" double precision,
-              \"IsStatementSent\" boolean,
-              \"IsOnCreditHold\" boolean,
-              \"PaymentDays\" bigint,
-              \"PhoneNumber\" text,
-              \"WebsiteURL\" text,
-              \"DeliveryAddressLine1\" text,
-              \"DeliveryPostalCode\" text
-            );
-            INSERT INTO raw_customers VALUES (1, 'Test Customer', 1, 1000.00, '2020-01-01', 0, false, false, 30, '123', 'http://test.com', 'Test St', '12345');
+            INSERT INTO raw_customers (
+              customerid, personid, storeid, territoryid, accountnumber,
+              customer_name, first_name, middle_name, last_name, store_name, modifieddate
+            )
+            VALUES (1, 1, null, 1, 'AW00000001', 'Test Customer', 'Test', null, 'Customer', null, now());
 
-            CREATE TABLE IF NOT EXISTS raw_products (
-              productid bigint, name text, productnumber text,
-              makeflag boolean, finishedgoodsflag boolean, color text,
-              safetystocklevel bigint, reorderpoint bigint,
-              standardcost double precision, listprice double precision,
-              size text, sizeunitmeasurecode text, weightunitmeasurecode text,
-              weight double precision, daystomanufacture bigint,
-              productline text, class text, style text
-            );
-            INSERT INTO raw_products VALUES (1, 'Test Product', 'TP-001', true, true, 'Red', 100, 50, 10.00, 20.00, 'M', 'CM', 'KG', 1.5, 1, 'R', 'H', 'U');
+            INSERT INTO raw_products (
+              productid, name, productnumber, makeflag, finishedgoodsflag, color,
+              safetystocklevel, reorderpoint, standardcost, listprice, size,
+              weight, daystomanufacture, productline, class, style
+            )
+            VALUES (1, 'Test Product', 'TP-001', true, true, 'Red', 100, 50, 10.00, 20.00, 'M', 1.5, 1, 'R', 'H', 'U');
 
-            CREATE TABLE IF NOT EXISTS raw_employees (
-              businessentityid bigint, nationalidnumber text, loginid text,
-              jobtitle text, birthdate date, maritalstatus text, gender text,
-              hiredate date, salariedflag boolean, vacationhours bigint,
-              sickleavehours bigint, currentflag boolean, rowguid text,
-              modifieddate timestamp, organizationnode text
-            );
-            INSERT INTO raw_employees VALUES (1, '123', 'test/login', 'Engineer', '1990-01-01', 'S', 'M', '2020-01-01', true, 10, 5, true, 'abc', now(), '/1/');
+            INSERT INTO raw_employees (
+              businessentityid, nationalidnumber, loginid, jobtitle, birthdate,
+              maritalstatus, gender, hiredate, salariedflag, vacationhours,
+              sickleavehours, currentflag, rowguid, modifieddate
+            )
+            VALUES (1, '123', 'test/login', 'Engineer', '1990-01-01', 'S', 'M', '2020-01-01', true, 10, 5, true, 'abc', now());
 
-            CREATE TABLE IF NOT EXISTS raw_sales_orders (
-              salesorderid bigint, revisionnumber bigint,
-              orderdate timestamp, duedate timestamp, shipdate timestamp,
-              status bigint, onlineorderflag boolean, purchaseordernumber text,
-              accountnumber text, customerid bigint, salespersonid double precision,
-              territoryid bigint, billtoaddressid bigint, shiptoaddressid bigint,
-              shipmethodid bigint, creditcardid double precision,
-              creditcardapprovalcode text, currencyrateid double precision,
-              subtotal double precision, taxamt double precision,
-              freight double precision, totaldue double precision,
-              order_date_key date
-            );
-            INSERT INTO raw_sales_orders VALUES (1, 1, now(), now(), now(), 5, false, 'PO-001', 'ACC-001', 1, 1, 1, 1, 1, 1, null, null, null, 100.00, 10.00, 5.00, 115.00, now()::date);
+            INSERT INTO raw_sales_orders (
+              salesorderid, revisionnumber, orderdate, duedate, shipdate, status,
+              onlineorderflag, purchaseordernumber, accountnumber, customerid,
+              salespersonid, territoryid, shipmethodid, subtotal, taxamt, freight,
+              totaldue, modifieddate
+            )
+            VALUES (1, 1, now(), now(), now(), 5, false, 'PO-001', 'ACC-001', 1, 1, 1, 1, 100.00, 10.00, 5.00, 115.00, now());
 
-            CREATE TABLE IF NOT EXISTS raw_sales_details (
-              salesorderid bigint, salesorderdetailid bigint,
-              carriertrackingnumber text, orderqty bigint, productid bigint,
-              specialofferid bigint, unitprice double precision,
-              unitpricediscount double precision, rowguid text, modifieddate timestamp
-            );
-            INSERT INTO raw_sales_details VALUES (1, 1, 'TRK-001', 2, 1, 1, 20.00, 0.00, 'abc', now());
+            INSERT INTO raw_sales_details (
+              salesorderid, salesorderdetailid, carriertrackingnumber, orderqty,
+              productid, specialofferid, unitprice, unitpricediscount, rowguid, modifieddate
+            )
+            VALUES (1, 1, 'TRK-001', 2, 1, 1, 20.00, 0.00, 'abc', now());
           "
 
       - name: Run dbt models

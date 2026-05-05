@@ -19,11 +19,7 @@ final as (
         product_class,
         style,
         is_make_item,
-        is_finished_good,
-        -- SCD Type 2 fields
-        current_timestamp   as valid_from,
-        '9999-12-31'::date  as valid_to,
-        true                as is_current
+        is_finished_good
     from stg_products
 )
 

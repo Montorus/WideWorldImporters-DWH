@@ -4,6 +4,30 @@ from datetime import datetime, timezone
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 TABLES = {
+    "raw_customers": """
+        SELECT
+            c.customerid,
+            c.personid,
+            c.storeid,
+            c.territoryid,
+            c.accountnumber,
+            COALESCE(
+                NULLIF(CONCAT_WS(' ', p.firstname, p.middlename, p.lastname), ''),
+                s.name,
+                c.accountnumber,
+                'Customer ' || c.customerid::text
+            ) AS customer_name,
+            p.firstname AS first_name,
+            p.middlename AS middle_name,
+            p.lastname AS last_name,
+            s.name AS store_name,
+            c.modifieddate
+        FROM sales.customer c
+        LEFT JOIN person.person p
+            ON c.personid = p.businessentityid
+        LEFT JOIN sales.store s
+            ON c.storeid = s.businessentityid
+    """,
     "raw_sales_orders": "SELECT * FROM sales.salesorderheader",
     "raw_sales_details": "SELECT * FROM sales.salesorderdetail",
     "raw_employees":     "SELECT * FROM humanresources.employee",

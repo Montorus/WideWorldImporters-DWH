@@ -16,11 +16,7 @@ final as (
         vacation_hours,
         sick_leave_hours,
         is_current,
-        modified_date,
-        -- SCD Type 2 fields
-        current_timestamp   as valid_from,
-        '9999-12-31'::date  as valid_to,
-        true                as is_active
+        modified_date
     from stg_employees
 )
 
