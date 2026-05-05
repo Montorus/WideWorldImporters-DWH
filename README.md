@@ -15,7 +15,7 @@ flowchart TD
     end
 
     subgraph ORCHESTRATION["Orchestration"]
-        AIRFLOW["⚙️ Apache Airflow 3.2.1\netl_mssql_dag\netl_adventureworks_dag\nSchedule: every 15 min\nRetry: 3x every 5 min"]
+        AIRFLOW["⚙️ Apache Airflow 3.2.1\netl_mssql_customers\netl_postgresql_adventureworks\nSchedule: every 15 min\nRetry: 3x every 5 min"]
     end
 
     subgraph DWH["PostgreSQL Data Warehouse"]
@@ -87,7 +87,7 @@ WideWorldImporters-DWH/
 ├── airflow/
 │   └── dags/
 │       ├── etl_mssql_dag.py           # ETL from MSSQL WideWorldImporters
-│       └── etl_postgresql_dag.py  # ETL from PostgreSQL AdventureWorks
+│       └── etl_postgresql_dag.py      # ETL from PostgreSQL AdventureWorks
 ├── dbt/
 │   ├── models/
 │   │   ├── staging/                   # Raw data cleaning and standardization
@@ -106,13 +106,22 @@ WideWorldImporters-DWH/
 │   │       └── schema.yml
 │   └── dbt_project.yml
 ├── etl/
-│   ├── extract_mssql.py              # Python ETL script for MSSQL
+│   ├── extract/                       # Source extraction/load helpers
+│   │   ├── mssql.py
+│   │   └── postgresql.py
+│   └── transform/
 ├── docker/
 │   ├── docker-compose.yml
 │   └── Dockerfile
 ├── docs/
-│   └── architecture.png
-├── .env.example
+│   ├── README.md
+│   ├── WideWorldImporters-PowerBI.pbix
+│   └── etl/
+│       └── pipeline_flow.md
+├── sql/
+│   └── queries/
+│       └── init_warehouse.sql
+├── docker/.env.example
 ├── .gitignore
 └── README.md
 ```
@@ -196,7 +205,12 @@ cd docker
 docker-compose up -d
 ```
 
-### 4. Restore MSSQL database
+### 4. Initialize DWH metadata tables
+```bash
+psql -h 127.0.0.1 -p 5434 -U dwh_user -d warehouse_db -f ../sql/queries/init_warehouse.sql
+```
+
+### 5. Restore MSSQL database
 ```bash
 docker cp WideWorldImporters-Full.bak mssql_source:/var/opt/mssql/data/
 docker exec -it mssql_source /opt/mssql-tools18/bin/sqlcmd \
@@ -204,14 +218,14 @@ docker exec -it mssql_source /opt/mssql-tools18/bin/sqlcmd \
   -Q "RESTORE DATABASE WideWorldImporters FROM DISK='/var/opt/mssql/data/WideWorldImporters-Full.bak'..."
 ```
 
-### 5. Run dbt models
+### 6. Run dbt models
 ```bash
 cd dbt
 dbt run
 dbt test
 ```
 
-### 6. Access Airflow
+### 7. Access Airflow
 ```
 URL: http://localhost:8080
 ```
