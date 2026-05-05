@@ -30,7 +30,7 @@ The RAW layer stores source-shaped data with minimal transformation. Airflow tru
 | `raw_products` | `production.product` |
 | `raw_employees` | `humanresources.employee` |
 
-Pipeline execution metadata is stored in `pipeline_runs`, created by `sql/queries/init_warehouse.sql`.
+Pipeline execution metadata is stored in `pipeline_runs`. The metadata table and all RAW tables are created by `sql/queries/init_warehouse.sql`.
 
 ## 4. dbt Staging Layer
 

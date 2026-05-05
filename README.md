@@ -205,10 +205,12 @@ cd docker
 docker-compose up -d
 ```
 
-### 4. Initialize DWH metadata tables
+### 4. Initialize DWH tables
 ```bash
 psql -h 127.0.0.1 -p 5434 -U dwh_user -d warehouse_db -f ../sql/queries/init_warehouse.sql
 ```
+
+This creates the `pipeline_runs` metadata table and the RAW tables required by the Airflow load tasks.
 
 ### 5. Restore MSSQL database
 ```bash
