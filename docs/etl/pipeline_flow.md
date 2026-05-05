@@ -18,6 +18,14 @@ Airflow is responsible for scheduled extraction and loading into the PostgreSQL 
 
 Current schedule target is every 15 minutes with retry handling configured in the DAG defaults.
 
+### Airflow Connection IDs
+
+| Connection ID | Docker Environment Variable | Target Service | Used By |
+|---|---|---|---|
+| `mssql_source` | `AIRFLOW_CONN_MSSQL_SOURCE` | `mssql_source:1433/WideWorldImporters` | `etl_mssql_customers` |
+| `postgres_source` | `AIRFLOW_CONN_POSTGRES_SOURCE` | `postgres_source:5432/${POSTGRES_SOURCE_DB}` | `etl_postgresql_adventureworks` |
+| `postgres_dwh` | `AIRFLOW_CONN_POSTGRES_DWH` | `postgres_dwh:5432/${POSTGRES_DWH_DB}` | Both ETL DAGs |
+
 ## 3. RAW Layer
 
 The RAW layer stores source-shaped data with minimal transformation. Airflow truncates and reloads the current raw tables.

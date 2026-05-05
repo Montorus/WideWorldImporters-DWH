@@ -49,6 +49,8 @@ services:
       dockerfile: Dockerfile
     container_name: airflow
     depends_on:
+      - mssql
+      - postgres_source
       - postgres_dwh
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -65,6 +67,7 @@ services:
     volumes:
        - ../airflow/dags:/opt/airflow/dags
        - ../etl:/opt/airflow/etl
+       - ../tests:/opt/airflow/tests
        - ./simple_auth_manager_passwords.json.generated:/opt/airflow/simple_auth_manager_passwords.json.generated
     networks:
       - dwh_network

@@ -20,4 +20,6 @@ This directory contains supporting documentation and reporting artifacts for the
 
 - Warehouse initialization SQL is stored in `sql/queries/init_warehouse.sql`.
 - Docker runtime configuration is stored under `docker/`.
+- Airflow connection IDs are provided through `AIRFLOW_CONN_*` environment variables in `docker/docker-compose.yml`.
+- Airflow DAG import tests are stored in `tests/test_airflow_dags.py`.
 - Generated runtime logs should not be treated as documentation or source code.

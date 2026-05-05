@@ -6,11 +6,119 @@ sources:
     tables:
       - name: raw_customers
         description: "Raw customers data from WideWorldImporters MSSQL source"
+        columns:
+          - name: CustomerID
+            description: "Source customer identifier"
+            quote: true
+            tests:
+              - not_null
       - name: raw_sales_orders
         description: "Raw sales orders from AdventureWorks PostgreSQL source"
+        columns:
+          - name: salesorderid
+            description: "Source sales order identifier"
+            tests:
+              - not_null
       - name: raw_sales_details
         description: "Raw sales order details from AdventureWorks PostgreSQL source"
+        columns:
+          - name: salesorderid
+            tests:
+              - not_null
+          - name: salesorderdetailid
+            description: "Source sales order line identifier"
+            tests:
+              - not_null
       - name: raw_products
         description: "Raw products from AdventureWorks PostgreSQL source"
+        columns:
+          - name: productid
+            description: "Source product identifier"
+            tests:
+              - not_null
       - name: raw_employees
         description: "Raw employees from AdventureWorks PostgreSQL source"
+        columns:
+          - name: businessentityid
+            description: "Source employee identifier"
+            tests:
+              - not_null
+
+models:
+  - name: stg_customers
+    description: "Standardized customer data from WideWorldImporters"
+    columns:
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_name
+        tests:
+          - not_null
+
+  - name: stg_sales_orders
+    description: "Standardized AdventureWorks sales order headers"
+    columns:
+      - name: sales_order_id
+        description: "Sales order identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+      - name: total_due
+        tests:
+          - not_null
+
+  - name: stg_sales_details
+    description: "Standardized AdventureWorks sales order lines"
+    columns:
+      - name: sales_order_detail_id
+        description: "Sales order line identifier"
+        tests:
+          - unique
+          - not_null
+      - name: sales_order_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: order_quantity
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+      - name: line_total
+        tests:
+          - not_null
+
+  - name: stg_products
+    description: "Standardized AdventureWorks product data"
+    columns:
+      - name: product_id
+        description: "Product identifier"
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+
+  - name: stg_employees
+    description: "Standardized AdventureWorks employee data"
+    columns:
+      - name: employee_id
+        description: "Employee identifier"
+        tests:
+          - unique
+          - not_null
+      - name: job_title
+        tests:
+          - not_null

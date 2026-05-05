@@ -54,9 +54,23 @@ models:
       - name: customer_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
       - name: product_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: employee_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_employees')
+                field: employee_id
       - name: date_id
         tests:
           - not_null
@@ -64,3 +78,15 @@ models:
               arguments:
                 to: ref('dim_date')
                 field: date_id
+      - name: order_quantity
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+      - name: line_total
+        tests:
+          - not_null
+      - name: total_due
+        tests:
+          - not_null
