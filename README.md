@@ -104,14 +104,18 @@ WideWorldImporters-DWH/
 ├── docs/
 │   ├── README.md
 │   ├── WideWorldImporters-PowerBI.pbix
-│   └── etl/pipeline_flow.md
+│   ├── etl/pipeline_flow.md
+│   └── operations/source_databases.md
 ├── etl/
 │   └── extract/
 │       ├── mssql.py
 │       └── postgresql.py
 ├── sql/
 │   └── queries/
+│       ├── import_adventureworks_required.sql
 │       └── init_warehouse.sql
+├── scripts/
+│   └── convert_adventureworks_csv.py
 ├── tests/
 │   └── test_airflow_dags.py
 └── README.md
@@ -222,6 +226,8 @@ This creates RAW tables and `pipeline_runs`.
 
 ### 4. Restore Source Data
 
+Use [source_databases.md](docs/operations/source_databases.md) as the operational runbook for source database targets, backup/restore, AdventureWorks CSV import, and validation checks.
+
 Restore WideWorldImporters into `mssql_source` if you want the MSSQL customer extract:
 
 ```powershell
@@ -230,7 +236,7 @@ docker cp WideWorldImporters-Full.bak mssql_source:/var/opt/mssql/data/
 
 Then restore the database inside SQL Server with `sqlcmd`.
 
-Load or restore AdventureWorks data into `postgres_source`; the PostgreSQL DAG expects these source tables:
+Load AdventureWorks CSV data into `postgres_source` using [import_adventureworks_required.sql](sql/queries/import_adventureworks_required.sql). The PostgreSQL DAG expects these source tables:
 
 | Source Table |
 |---|

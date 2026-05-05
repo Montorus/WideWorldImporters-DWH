@@ -9,6 +9,7 @@ Start with the root [README.md](../README.md) for setup, architecture, and run c
 | Path | Purpose |
 |---|---|
 | [`etl/pipeline_flow.md`](etl/pipeline_flow.md) | Technical ETL flow from source systems to RAW, staging, marts, tests, and Power BI |
+| [`operations/source_databases.md`](operations/source_databases.md) | Canonical source DB targets, backup/restore rules, CSV import steps, and validation checks |
 | `WideWorldImporters-PowerBI.pbix` | Power BI report artifact connected to the warehouse mart layer |
 
 ## Runtime Areas

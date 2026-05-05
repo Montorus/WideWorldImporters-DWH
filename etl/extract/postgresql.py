@@ -28,10 +28,97 @@ TABLES = {
         LEFT JOIN sales.store s
             ON c.storeid = s.businessentityid
     """,
-    "raw_sales_orders": "SELECT * FROM sales.salesorderheader",
-    "raw_sales_details": "SELECT * FROM sales.salesorderdetail",
-    "raw_employees":     "SELECT * FROM humanresources.employee",
-    "raw_products":      "SELECT * FROM production.product",
+    "raw_sales_orders": """
+        SELECT
+            salesorderid,
+            revisionnumber,
+            orderdate,
+            duedate,
+            shipdate,
+            status,
+            onlineorderflag,
+            purchaseordernumber,
+            accountnumber,
+            customerid,
+            salespersonid,
+            territoryid,
+            billtoaddressid,
+            shiptoaddressid,
+            shipmethodid,
+            creditcardid,
+            creditcardapprovalcode,
+            currencyrateid,
+            subtotal,
+            taxamt,
+            freight,
+            totaldue,
+            rowguid,
+            modifieddate
+        FROM sales.salesorderheader
+    """,
+    "raw_sales_details": """
+        SELECT
+            salesorderid,
+            salesorderdetailid,
+            carriertrackingnumber,
+            orderqty,
+            productid,
+            specialofferid,
+            unitprice,
+            unitpricediscount,
+            rowguid,
+            modifieddate
+        FROM sales.salesorderdetail
+    """,
+    "raw_employees": """
+        SELECT
+            businessentityid,
+            nationalidnumber,
+            loginid,
+            organizationnode,
+            organizationlevel,
+            jobtitle,
+            birthdate,
+            maritalstatus,
+            gender,
+            hiredate,
+            salariedflag,
+            vacationhours,
+            sickleavehours,
+            currentflag,
+            rowguid,
+            modifieddate
+        FROM humanresources.employee
+    """,
+    "raw_products": """
+        SELECT
+            productid,
+            name,
+            productnumber,
+            makeflag,
+            finishedgoodsflag,
+            color,
+            safetystocklevel,
+            reorderpoint,
+            standardcost,
+            listprice,
+            size,
+            sizeunitmeasurecode,
+            weightunitmeasurecode,
+            weight,
+            daystomanufacture,
+            productline,
+            class,
+            style,
+            productsubcategoryid,
+            productmodelid,
+            sellstartdate,
+            sellenddate,
+            discontinueddate,
+            rowguid,
+            modifieddate
+        FROM production.product
+    """,
 }
 
 def extract_and_load(source_conn_id: str, dwh_conn_id: str, dag_name: str = None):
